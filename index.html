@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>RN Inspector Pro</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Titlebar ── -->
+    <header id="titlebar">
+      <div id="titlebar-drag">
+        <span id="app-name">RN Inspector Pro</span>
+        <span id="version-badge">v2.0.0</span>
+      </div>
+      <div id="connection-status">
+        <span id="status-dot" class="dot disconnected"></span>
+        <span id="status-label">Waiting for app…</span>
+      </div>
+    </header>
+
+    <!-- ── Main layout ── -->
+    <div id="layout">
+
+      <!-- ── Sidebar ── -->
+      <aside id="sidebar">
+        <nav>
+          <button class="nav-item active" data-view="logs">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M4 5h12M4 9h12M4 13h8" stroke-linecap="round"/>
+            </svg>
+            <span>Logs</span>
+          </button>
+          <button class="nav-item" data-view="projects">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="3" y="4" width="14" height="12" rx="2"/>
+              <path d="M7 4V3M13 4V3" stroke-linecap="round"/>
+              <path d="M3 8h14" stroke-linecap="round"/>
+            </svg>
+            <span>Projects</span>
+          </button>
+          <button class="nav-item" data-view="history">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+              <circle cx="10" cy="10" r="7"/>
+              <path d="M10 6v4l2.5 2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>History</span>
+          </button>
+        </nav>
+
+        <!-- Connected devices list -->
+        <div id="devices-section">
+          <div id="devices-label">Connected</div>
+          <div id="devices-list">
+            <div id="devices-empty">No devices</div>
+          </div>
+        </div>
+
+        <div id="sidebar-footer">
+          <div id="device-info">
+            <div class="device-icon">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="6" y="2" width="8" height="16" rx="2"/>
+                <circle cx="10" cy="15.5" r="0.8" fill="currentColor" stroke="none"/>
+              </svg>
+            </div>
+            <div id="device-details">
+              <span id="app-name-display">No app connected</span>
+              <span id="app-bundle-display">—</span>
+            </div>
+          </div>
+          <div id="ws-port-info">
+            <span>ws://localhost:</span><span id="port-display">8097</span>
+          </div>
+
+          <!-- Theme picker -->
+          <div id="theme-picker">
+            <button class="theme-btn" data-theme="dark" title="Dark">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5Z" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="theme-btn" data-theme="light" title="Light">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="8" cy="8" r="3"/>
+                <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M3.5 12.5l1.4-1.4M11.1 4.9l1.4-1.4" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="theme-btn" data-theme="system" title="System">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="3" width="12" height="8" rx="1.5"/>
+                <path d="M5 13h6M8 11v2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ── Main content area ── -->
+      <main id="content">
+
+        <!-- ══════════════════════ LOGS VIEW ══════════════════════ -->
+        <div id="view-logs" class="view active">
+
+          <!-- Managed project runner bar -->
+          <div id="project-toolbar">
+            <div class="project-picker-group">
+              <span class="project-label">PROJECT</span>
+              <div id="project-path" class="project-path">No project selected</div>
+              <div id="project-command" class="project-command">Select a React Native project to begin</div>
+            </div>
+            <div class="project-actions">
+              <button id="select-project-btn" class="project-btn secondary">Browse…</button>
+              <button id="start-project-btn" class="project-btn primary" disabled>Start</button>
+              <button id="stop-project-btn" class="project-btn danger" disabled>Stop</button>
+            </div>
+          </div>
+
+          <!-- Metro command shortcuts -->
+          <div id="metro-shortcuts" class="hidden">
+            <span class="shortcuts-label">METRO</span>
+            <button class="shortcut-btn" data-cmd="r" title="Reload">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M13.5 8A5.5 5.5 0 1 1 11.6 4" stroke-linecap="round"/>
+                <path d="M13.7 2.5v3.7H10" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="shortcut-btn" data-cmd="d" title="Dev Menu">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="2.5" width="12" height="11" rx="2"/>
+                <path d="M4.8 6h6.4M4.8 9h4" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="shortcut-btn" data-cmd="i" title="Run on iOS">
+              <svg viewBox="0 0 16 16" fill="currentColor" stroke="none">
+                <path d="M11.05 8.42c-.02-1.66 1.36-2.46 1.42-2.5-.78-1.13-1.98-1.29-2.41-1.31-1.03-.1-2 .6-2.53.6-.52 0-1.33-.59-2.19-.57-1.13.02-2.16.65-2.74 1.66-1.17 2.02-.3 5.01.84 6.65.56.8 1.22 1.7 2.09 1.67.84-.03 1.16-.54 2.17-.54s1.3.54 2.19.52c.9-.02 1.47-.82 2.03-1.62a7.1 7.1 0 0 0 .91-1.87c-.02-.01-1.75-.67-1.78-2.69Z"/>
+                <path d="M9.53 3.66c.47-.57.79-1.36.7-2.16-.68.03-1.5.46-1.99 1.03-.44.5-.82 1.31-.72 2.08.75.06 1.53-.38 2.01-.95Z"/>
+              </svg>
+            </button>
+            <button class="shortcut-btn" data-cmd="a" title="Run on Android">
+              <svg viewBox="0 0 16 16" fill="currentColor" stroke="none">
+                <path d="M4.7 6.6v3.4a.65.65 0 0 0 1.3 0V6.6a.65.65 0 0 0-1.3 0ZM10 6.6v3.4a.65.65 0 0 0 1.3 0V6.6a.65.65 0 0 0-1.3 0ZM5.4 10.4c0 .46.37.83.82.83h.24v1.32a.65.65 0 0 0 1.3 0v-1.32h.68v1.32a.65.65 0 0 0 1.3 0v-1.32h.24c.45 0 .82-.37.82-.83V6.85H5.4v3.55Z"/>
+                <path d="M6.13 5.98h3.74c0-.83-.47-1.57-1.2-1.96l.47-.85-.28-.16-.5.9a2.5 2.5 0 0 0-1.72 0l-.5-.9-.28.16.47.85c-.73.4-1.2 1.13-1.2 1.96Zm.7-1.02a.3.3 0 1 1 .6 0 .3.3 0 0 1-.6 0Zm2.3 0a.3.3 0 1 1 .6 0 .3.3 0 0 1-.6 0Z"/>
+              </svg>
+            </button>
+            <button class="shortcut-btn" data-cmd="j" title="Open Debugger">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+                <circle cx="8" cy="9.2" r="3.6"/>
+                <path d="M8 5.6V3.4M6.3 3.9 5.2 2.5M9.7 3.9l1.1-1.4M4.4 9.2H2.2M13.8 9.2h-2.2M4.9 12.3 3.5 13.7M11.1 12.3l1.4 1.4M4.9 6.1 3.5 4.7M11.1 6.1l1.4-1.4" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Toolbar -->
+          <div id="log-toolbar">
+            <div id="log-filters">
+              <button class="filter-btn active" data-filter="all">All</button>
+              <button class="filter-btn" data-filter="log">Log</button>
+              <button class="filter-btn" data-filter="warn">Warn</button>
+              <button class="filter-btn" data-filter="error">Error</button>
+              <button class="filter-btn" data-filter="info">Info</button>
+            </div>
+
+            <div id="log-search-wrap">
+              <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="6.5" cy="6.5" r="4"/>
+                <path d="M11 11l2.5 2.5" stroke-linecap="round"/>
+              </svg>
+              <input id="log-search" type="text" placeholder="Search logs…" autocomplete="off" spellcheck="false" />
+              <button id="clear-search" class="icon-btn hidden" title="Clear search">✕</button>
+            </div>
+
+            <div id="log-actions">
+              <button id="autoscroll-btn" class="icon-btn active" title="Auto-scroll">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M8 2v9M5 8l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3 13h10" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button id="export-btn" class="icon-btn" title="Export logs">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M8 2v8M5 7l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M2 11v1a2 2 0 002 2h8a2 2 0 002-2v-1" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <!-- ── Device picker button ── -->
+              <button id="device-picker-btn" class="icon-btn" title="Device / Window Size">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="2" y="1" width="8" height="13" rx="1.5"/>
+                  <rect x="11" y="5" width="3" height="9" rx="1"/>
+                  <circle cx="6" cy="12" r="0.8" fill="currentColor" stroke="none"/>
+                </svg>
+              </button>
+              <button id="clear-btn" class="icon-btn" title="Clear logs">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5L11 4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Log count bar + device preset badge -->
+          <div id="log-stats">
+            <span id="stat-total">0 entries</span>
+            <span class="stat-divider">·</span>
+            <span id="stat-errors" class="stat-errors">0 errors</span>
+            <span class="stat-divider">·</span>
+            <span id="stat-warns" class="stat-warns">0 warnings</span>
+            <span id="filtered-note" class="hidden">· showing filtered results</span>
+            <!-- Device preset badge appears here when a preset is active -->
+            <span id="device-preset-badge" class="hidden"></span>
+          </div>
+
+          <!-- Log list -->
+          <div id="log-list" role="list" aria-label="Log entries"></div>
+
+          <!-- Empty state -->
+          <div id="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+                <rect x="8" y="4" width="32" height="40" rx="4"/>
+                <path d="M16 14h16M16 20h16M16 26h10" stroke-linecap="round"/>
+                <circle cx="36" cy="36" r="8" fill="var(--bg-0)" stroke="currentColor"/>
+                <path d="M33 36l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <p class="empty-title">No logs yet</p>
+            <p class="empty-sub">Select a project and click <strong>Start</strong> to run it here — or connect via <strong>ws://localhost:8097</strong></p>
+          </div>
+        </div>
+        <!-- /view-logs -->
+
+        <!-- ══════════════════════ PROJECTS VIEW ══════════════════════ -->
+        <div id="view-projects" class="view">
+          <div id="projects-toolbar">
+            <span id="projects-title">Recent Projects</span>
+            <button id="add-project-btn" class="project-btn primary small">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" style="width:12px;height:12px;margin-right:5px;">
+                <path d="M8 2v12M2 8h12" stroke-linecap="round"/>
+              </svg>
+              Add Project
+            </button>
+          </div>
+
+          <div id="projects-content">
+            <!-- Running project card (shown only when running) -->
+            <div id="running-project-card" class="hidden">
+              <div class="running-card-header">
+                <span class="running-badge">● RUNNING</span>
+                <span id="running-project-name" class="running-project-name">—</span>
+              </div>
+              <div id="running-project-path" class="running-project-path">—</div>
+              <div id="running-project-cmd" class="running-project-cmd">—</div>
+              <div class="running-card-actions">
+                <button id="rc-stop-btn" class="project-btn danger small">Stop Process</button>
+                <button id="rc-view-logs-btn" class="project-btn secondary small">View Logs</button>
+              </div>
+            </div>
+
+            <!-- Recent list -->
+            <div id="recents-section">
+              <div id="recents-label">Recent</div>
+              <ul id="recent-list"></ul>
+              <div id="recent-empty">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <rect x="6" y="4" width="28" height="32" rx="3"/>
+                  <path d="M13 13h14M13 19h14M13 25h8" stroke-linecap="round"/>
+                </svg>
+                <p>No recent projects</p>
+                <span>Click "Add Project" to select a React Native or Expo project folder.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- /view-projects -->
+
+        <!-- ══════════════════════ HISTORY VIEW ══════════════════════ -->
+        <div id="view-history" class="view">
+          <div id="history-toolbar">
+            <span id="history-title">Session History</span>
+            <button id="history-refresh-btn" class="icon-btn" title="Refresh">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M13.5 8A5.5 5.5 0 112.5 5.5" stroke-linecap="round"/>
+                <path d="M2.5 2v3.5H6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <div id="history-layout">
+            <div id="session-list-panel">
+              <div id="session-list"></div>
+              <div id="session-empty-state" class="hidden">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <circle cx="20" cy="20" r="15"/>
+                  <path d="M20 12v8l4 4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <p>No sessions yet</p>
+                <span>Sessions are saved when you clear logs or disconnect.</span>
+              </div>
+            </div>
+
+            <div id="session-replay-panel">
+              <div id="replay-empty">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <rect x="6" y="4" width="28" height="32" rx="3"/>
+                  <path d="M13 13h14M13 19h14M13 25h8" stroke-linecap="round"/>
+                </svg>
+                <p>Select a session to replay</p>
+              </div>
+              <div id="replay-header" class="hidden">
+                <div id="replay-meta">
+                  <span id="replay-app-name">—</span>
+                  <span id="replay-date">—</span>
+                </div>
+                <div id="replay-stats">
+                  <span id="replay-stat-total">—</span>
+                  <span class="stat-divider">·</span>
+                  <span id="replay-stat-errors" class="stat-errors">—</span>
+                  <span class="stat-divider">·</span>
+                  <span id="replay-stat-warns" class="stat-warns">—</span>
+                </div>
+              </div>
+              <div id="replay-log-list" class="hidden" role="list" aria-label="Replayed log entries"></div>
+            </div>
+          </div>
+        </div>
+        <!-- /view-history -->
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Copy toast -->
+  <div id="copy-toast" class="toast hidden">Copied to clipboard</div>
+
+  <!-- Export menu -->
+  <div id="export-menu" class="dropdown hidden">
+    <button class="dropdown-item" id="export-json">Export as JSON</button>
+    <button class="dropdown-item" id="export-txt">Export as TXT</button>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

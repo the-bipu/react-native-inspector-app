@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>Device Preview</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens (mirrors style.css / picker.html) ── */
+    :root {
+      --bg-0:       #0d0d0f;
+      --bg-1:       #111114;
+      --bg-2:       #17171b;
+      --bg-3:       #1e1e24;
+      --bg-4:       #26262e;
+      --bg-5:       #2e2e38;
+      --text-0:     #f0f0f4;
+      --text-1:     #a0a0b0;
+      --text-2:     #5a5a70;
+      --text-3:     #35354a;
+      --accent:     #6c63ff;
+      --accent-dim: #6c63ff22;
+      --accent-glow:#6c63ff44;
+      --error:      #ff5f57;
+      --error-dim:  #ff5f5718;
+      --font-ui:    -apple-system, 'Segoe UI', system-ui, sans-serif;
+      --font-mono:  'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Menlo', monospace;
+    }
+
+    [data-theme="light"] {
+      --bg-0:       #f4f4f6;
+      --bg-1:       #ffffff;
+      --bg-2:       #f0f0f3;
+      --bg-3:       #e8e8ed;
+      --bg-4:       #dddde4;
+      --bg-5:       #d0d0da;
+      --text-0:     #111116;
+      --text-1:     #44445a;
+      --text-2:     #7a7a94;
+      --text-3:     #aaaabf;
+      --accent:     #5b52e8;
+      --accent-dim: #5b52e818;
+      --accent-glow:#5b52e830;
+      --error:      #d93025;
+      --error-dim:  #d9302512;
+    }
+
+    html, body {
+      height: 100%; background: var(--bg-0); color: var(--text-0);
+      font-family: var(--font-ui); font-size: 12px;
+      -webkit-font-smoothing: antialiased; overflow: hidden;
+    }
+
+    #root { display: flex; flex-direction: column; height: 100%; }
+
+    #preview-area::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+
+    /* ── Header ── */
+    #header {
+      height: 42px; flex: 0 0 42px;
+      background: var(--bg-1);
+      border-bottom: 1px solid var(--bg-5);
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 10px;
+      -webkit-app-region: drag;
+    }
+    #device-label {
+      font-size: 11.5px; font-weight: 700; color: var(--text-0);
+      white-space: nowrap; flex: 0 0 auto;
+    }
+    #device-dims {
+      font-size: 10px; font-family: var(--font-mono); color: var(--text-2);
+      white-space: nowrap; flex: 0 0 auto;
+    }
+
+    #url-form {
+      -webkit-app-region: no-drag;
+      flex: 1 1 auto;
+      display: flex; align-items: center; gap: 6px;
+      min-width: 0;
+    }
+    #url-input {
+      flex: 1 1 auto; min-width: 0;
+      height: 26px; padding: 0 9px;
+      border-radius: 6px; border: 1px solid var(--bg-5);
+      background: var(--bg-3); color: var(--text-0);
+      font-family: var(--font-mono); font-size: 11px;
+      outline: none;
+    }
+    #url-input:focus { border-color: var(--accent-glow); background: var(--bg-4); }
+    #url-input::placeholder { color: var(--text-3); }
+
+    .hdr-btn {
+      -webkit-app-region: no-drag;
+      flex: 0 0 auto;
+      width: 26px; height: 26px; border-radius: 6px;
+      border: 1px solid var(--bg-5); background: var(--bg-3);
+      color: var(--text-1); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .1s, color .1s;
+    }
+    .hdr-btn:hover { background: var(--bg-4); color: var(--text-0); }
+    .hdr-btn svg { width: 13px; height: 13px; }
+
+    #go-btn {
+      width: auto; padding: 0 12px;
+      font-size: 11px; font-weight: 600; font-family: var(--font-ui);
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    #go-btn:hover { filter: brightness(1.1); background: var(--accent); color: #fff; }
+
+    #close-btn:hover { background: var(--error-dim); color: var(--error); border-color: var(--error); }
+
+    /* ── Preview area ── */
+    #preview-area {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      background: var(--bg-0);
+      overflow: hidden;
+    }
+
+    /* The webview always fills the entire preview area, full width and
+       full height, for every device preset — the window itself is what's
+       sized to the device's dimensions (clamped to fit the screen), so
+       the content never needs to be scaled down or letterboxed inside it.
+       This also keeps the page's own viewport exactly matching what's
+       visible on screen, so position:fixed content (e.g. a bottom tab
+       bar) always renders where it should, with no scrolling needed. */
+    #device-frame { position: relative; width: 100%; height: 100%; }
+
+    webview { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; }
+    webview.hidden { display: none; }
+
+    /* ── Empty / placeholder state ── */
+    #placeholder, #load-error {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; padding: 24px; text-align: center;
+    }
+    #placeholder.hidden, #load-error.hidden { display: none; }
+
+    .ph-icon { color: var(--text-3); }
+    .ph-title { font-size: 13px; font-weight: 700; color: var(--text-0); }
+    .ph-sub { font-size: 11.5px; color: var(--text-2); line-height: 1.6; max-width: 320px; }
+    .ph-sub strong { color: var(--text-1); font-family: var(--font-mono); font-weight: 600; }
+
+    #load-error .ph-icon { color: var(--error); }
+    #retry-btn {
+      margin-top: 4px;
+      height: 28px; padding: 0 14px;
+      border-radius: 6px; border: 1px solid var(--accent);
+      background: var(--accent); color: #fff;
+      font-family: var(--font-ui); font-size: 11.5px; font-weight: 600;
+      cursor: pointer;
+    }
+    #retry-btn:hover { filter: brightness(1.1); }
+
+    /* ── Loading bar ── */
+    #loading-bar {
+      position: absolute; top: 0; left: 0; height: 2px; width: 0%;
+      background: var(--accent);
+      transition: width .25s ease;
+      z-index: 5;
+    }
+    #loading-bar.hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="root">
+  <header id="header">
+    <span id="device-label">Preview</span>
+    <span id="device-dims"></span>
+
+    <form id="url-form">
+      <input id="url-input" type="text" placeholder="http://localhost:8081" autocomplete="off" spellcheck="false" />
+      <button type="submit" id="go-btn" class="hdr-btn">Go</button>
+    </form>
+
+    <button id="reload-btn" class="hdr-btn" title="Reload">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="256" height="256" viewBox="0 0 256 256" xml:space="preserve">
+        <g style="stroke: none; stroke-width: 0; stroke-dasharray: none; stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; fill: none; fill-rule: nonzero; opacity: 1;" transform="translate(1.4065934065934016 1.4065934065934016) scale(2.81 2.81)">
+          <path d="M 81.521 31.109 c -0.86 -1.73 -2.959 -2.438 -4.692 -1.575 c -1.73 0.86 -2.436 2.961 -1.575 4.692 c 2.329 4.685 3.51 9.734 3.51 15.01 C 78.764 67.854 63.617 83 45 83 S 11.236 67.854 11.236 49.236 c 0 -16.222 11.501 -29.805 26.776 -33.033 l -3.129 4.739 c -1.065 1.613 -0.62 3.784 0.992 4.85 c 0.594 0.392 1.264 0.579 1.926 0.579 c 1.136 0 2.251 -0.553 2.924 -1.571 l 7.176 -10.87 c 0.001 -0.001 0.001 -0.002 0.002 -0.003 l 0.018 -0.027 c 0.063 -0.096 0.106 -0.199 0.159 -0.299 c 0.049 -0.093 0.108 -0.181 0.149 -0.279 c 0.087 -0.207 0.152 -0.419 0.197 -0.634 c 0.009 -0.041 0.008 -0.085 0.015 -0.126 c 0.031 -0.182 0.053 -0.364 0.055 -0.547 c 0 -0.014 0.004 -0.028 0.004 -0.042 c 0 -0.066 -0.016 -0.128 -0.019 -0.193 c -0.008 -0.145 -0.018 -0.288 -0.043 -0.431 c -0.018 -0.097 -0.045 -0.189 -0.071 -0.283 c -0.032 -0.118 -0.065 -0.236 -0.109 -0.35 c -0.037 -0.095 -0.081 -0.185 -0.125 -0.276 c -0.052 -0.107 -0.107 -0.211 -0.17 -0.313 c -0.054 -0.087 -0.114 -0.168 -0.175 -0.25 c -0.07 -0.093 -0.143 -0.183 -0.223 -0.27 c -0.074 -0.08 -0.153 -0.155 -0.234 -0.228 c -0.047 -0.042 -0.085 -0.092 -0.135 -0.132 L 36.679 0.775 c -1.503 -1.213 -3.708 -0.977 -4.921 0.53 c -1.213 1.505 -0.976 3.709 0.53 4.921 l 3.972 3.2 C 17.97 13.438 4.236 29.759 4.236 49.236 C 4.236 71.714 22.522 90 45 90 s 40.764 -18.286 40.764 -40.764 C 85.764 42.87 84.337 36.772 81.521 31.109 z" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1;" transform=" matrix(1 0 0 1 0 0) " stroke-linecap="round"/>
+        </g>
+      </svg>
+    </button>
+    <button id="close-btn" class="hdr-btn" title="Close">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </header>
+
+  <div id="preview-area">
+    <div id="loading-bar" class="hidden"></div>
+
+    <div id="placeholder">
+      <svg class="ph-icon" width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.3">
+        <rect x="6" y="4" width="28" height="32" rx="3"/>
+        <path d="M13 13h14M13 19h14M13 25h8" stroke-linecap="round"/>
+      </svg>
+      <p class="ph-title">No dev server connected yet</p>
+      <p class="ph-sub">Enter your project's dev server URL above (e.g. <strong>http://localhost:8081</strong>) and press Go — or start your project from the main window first.</p>
+    </div>
+
+    <div id="load-error" class="hidden">
+      <svg class="ph-icon" width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.3">
+        <circle cx="20" cy="20" r="15"/>
+        <path d="M20 13v10M20 27v.5" stroke-linecap="round"/>
+      </svg>
+      <p class="ph-title">Couldn't reach the dev server</p>
+      <p class="ph-sub" id="load-error-detail">Make sure the project is running.</p>
+      <button id="retry-btn">Retry</button>
+    </div>
+
+    <div id="device-frame">
+      <webview id="preview-webview" class="hidden" allowpopups></webview>
+    </div>
+  </div>
+</div>
+
+<script src="device-preview.js"></script>
+</body>
+</html>

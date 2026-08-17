@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>Device Picker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens (mirrors style.css so the picker matches the app) ── */
+    :root {
+      --bg-0:       #0d0d0f;
+      --bg-1:       #111114;
+      --bg-2:       #17171b;
+      --bg-3:       #1e1e24;
+      --bg-4:       #26262e;
+      --bg-5:       #2e2e38;
+      --text-0:     #f0f0f4;
+      --text-1:     #a0a0b0;
+      --text-2:     #5a5a70;
+      --text-3:     #35354a;
+      --accent:     #6c63ff;
+      --accent-dim: #6c63ff22;
+      --accent-glow:#6c63ff44;
+      --green:      #4caf82;
+      --green-dim:  #4caf8220;
+      --green-glow: #4caf8240;
+      --font-ui:    -apple-system, 'Segoe UI', system-ui, sans-serif;
+      --font-mono:  'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Menlo', monospace;
+    }
+
+    /* ── Light theme overrides — same palette as style.css's [data-theme="light"] ── */
+    [data-theme="light"] {
+      --bg-0:       #f4f4f6;
+      --bg-1:       #ffffff;
+      --bg-2:       #f0f0f3;
+      --bg-3:       #e8e8ed;
+      --bg-4:       #dddde4;
+      --bg-5:       #d0d0da;
+      --text-0:     #111116;
+      --text-1:     #44445a;
+      --text-2:     #7a7a94;
+      --text-3:     #aaaabf;
+      --accent:     #5b52e8;
+      --accent-dim: #5b52e818;
+      --accent-glow:#5b52e830;
+      --green:      #2e8f5c;
+      --green-dim:  #2e8f5c18;
+      --green-glow: #2e8f5c30;
+    }
+
+    html, body {
+      height: 100%; background: var(--bg-0); color: var(--text-0);
+      font-family: var(--font-ui); font-size: 13px;
+      -webkit-font-smoothing: antialiased; user-select: none; overflow: hidden;
+      transition: background .12s, color .12s;
+    }
+
+    /* ── Drag titlebar ── */
+    #titlebar {
+      height: 38px;
+      background: var(--bg-0);
+      border-bottom: 1px solid var(--bg-5);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 14px;
+      -webkit-app-region: drag;
+    }
+    #titlebar-left { display: flex; align-items: center; gap: 8px; }
+    #titlebar-title { font-size: 12px; font-weight: 600; color: var(--text-1); }
+    #titlebar-badge {
+      font-size: 10px; font-family: var(--font-mono);
+      color: var(--accent); background: var(--accent-dim);
+      padding: 1px 7px; border-radius: 100px; border: 1px solid var(--accent-glow);
+    }
+    #close-btn {
+      -webkit-app-region: no-drag;
+      width: 24px; height: 24px; border-radius: 6px;
+      border: 1px solid var(--bg-5); background: var(--bg-3);
+      color: var(--text-2); cursor: pointer; font-size: 14px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .1s, color .1s;
+    }
+    #close-btn:hover { background: #ff5f5720; color: #ff5f57; border-color: #ff5f5730; }
+
+    /* ── Body ── */
+    #body { padding: 20px 20px 0; }
+
+    #picker-heading { font-size: 15px; font-weight: 700; color: var(--text-0); margin-bottom: 4px; }
+    #picker-sub { font-size: 12px; color: var(--text-2); margin-bottom: 18px; line-height: 1.5; }
+
+    /* ── Device grid ── */
+    #device-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .device-card {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 14px 12px 12px;
+      border-radius: 10px;
+      border: 1.5px solid var(--bg-5);
+      background: var(--bg-2);
+      cursor: pointer;
+      transition: border-color .14s, background .14s, transform .1s;
+      position: relative;
+    }
+    .device-card:hover { border-color: var(--accent-glow); background: var(--bg-3); }
+    .device-card:active { transform: scale(0.975); }
+    .device-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .device-card.selected .device-name { color: var(--accent); }
+
+    /* Check badge */
+    .device-card.selected::after {
+      content: '✓';
+      position: absolute; top: 8px; right: 10px;
+      font-size: 11px; font-weight: 700; color: var(--accent);
+    }
+
+    /* Responsive card spans full width */
+    .device-card.responsive-card {
+      grid-column: 1 / -1;
+      flex-direction: row; justify-content: flex-start; gap: 14px;
+      padding: 12px 16px;
+    }
+    .device-card.responsive-card.selected {
+      border-color: var(--green);
+      background: var(--green-dim);
+    }
+    .device-card.responsive-card.selected .device-name { color: var(--green); }
+    .device-card.responsive-card.selected::after { color: var(--green); }
+
+    /* Phone icon */
+    .device-icon { margin-bottom: 8px; color: var(--text-2); }
+    .device-card.selected .device-icon { color: var(--accent); }
+    .device-card.responsive-card .device-icon { margin-bottom: 0; }
+    .device-card.responsive-card.selected .device-icon { color: var(--green); }
+
+    .device-name {
+      font-size: 12px; font-weight: 600; color: var(--text-0);
+      text-align: center; margin-bottom: 4px;
+    }
+    .device-card.responsive-card .device-name { text-align: left; margin-bottom: 2px; }
+
+    .device-dims {
+      font-size: 10px; font-family: var(--font-mono);
+      color: var(--text-3); text-align: center;
+    }
+    .device-card.responsive-card .device-dims { text-align: left; }
+
+    .responsive-desc { display: flex; flex-direction: column; }
+
+    /* ── Footer ── */
+    #footer {
+      padding: 14px 20px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-top: 1px solid var(--bg-5);
+      background: var(--bg-1);
+    }
+
+    #selected-label { font-size: 11px; color: var(--text-2); }
+    #selected-label strong { color: var(--text-0); }
+
+    #footer-actions { display: flex; gap: 8px; }
+
+    .btn {
+      height: 32px; padding: 0 16px;
+      border-radius: 7px; border: 1px solid var(--bg-5);
+      font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: .12s;
+      background: var(--bg-3); color: var(--text-1);
+    }
+    .btn-secondary { background: var(--bg-3); color: var(--text-1); }
+    .btn-secondary:hover { background: var(--bg-4); color: var(--text-0); }
+    .btn-primary {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-primary:disabled { opacity: .45; cursor: default; filter: none; }
+  </style>
+</head>
+<body>
+
+<header id="titlebar">
+  <div id="titlebar-left">
+    <span id="titlebar-title">Device Picker</span>
+    <span id="titlebar-badge">Window Size</span>
+  </div>
+  <button id="close-btn" title="Cancel">✕</button>
+</header>
+
+<div id="body">
+  <p id="picker-heading">Choose a device preset</p>
+  <p id="picker-sub">The window will resize to match the selected device dimensions.<br>You can change this anytime from the toolbar.</p>
+
+  <div id="device-grid">
+
+    <!-- iPhone 15 Pro -->
+    <div class="device-card" data-preset="iphone15pro">
+      <div class="device-icon">
+        <svg width="28" height="44" viewBox="0 0 28 44" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="2" y="2" width="24" height="40" rx="5"/>
+          <path d="M10 2.5h8" stroke-linecap="round" stroke-width="2.5"/>
+          <circle cx="14" cy="38.5" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <span class="device-name">iPhone 15 Pro</span>
+      <span class="device-dims">393 × 852 px</span>
+    </div>
+
+    <!-- Pixel 8 -->
+    <div class="device-card" data-preset="pixel8">
+      <div class="device-icon">
+        <svg width="26" height="44" viewBox="0 0 26 44" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="2" y="2" width="22" height="40" rx="4"/>
+          <rect x="9" y="4" width="8" height="2.5" rx="1.25" fill="currentColor" stroke="none"/>
+          <circle cx="13" cy="38.5" r="1.8" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <span class="device-name">Pixel 8</span>
+      <span class="device-dims">412 × 915 px</span>
+    </div>
+
+    <!-- iPad Pro 11" -->
+    <div class="device-card" data-preset="ipadpro11">
+      <div class="device-icon">
+        <svg width="36" height="44" viewBox="0 0 36 44" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="2" y="2" width="32" height="40" rx="4"/>
+          <circle cx="18" cy="38.5" r="1.5" fill="currentColor" stroke="none"/>
+          <rect x="14" y="3" width="8" height="1.5" rx=".75" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <span class="device-name">iPad Pro 11"</span>
+      <span class="device-dims">834 × 1194 px</span>
+    </div>
+
+    <!-- Galaxy Tab S9 -->
+    <div class="device-card" data-preset="galaxytab">
+      <div class="device-icon">
+        <svg width="36" height="44" viewBox="0 0 36 44" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="2" y="2" width="32" height="40" rx="3.5"/>
+          <circle cx="18" cy="39" r="1.2" fill="currentColor" stroke="none"/>
+          <rect x="31" y="14" width="1.5" height="8" rx=".75" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <span class="device-name">Galaxy Tab S9</span>
+      <span class="device-dims">800 × 1280 px</span>
+    </div>
+
+    <!-- Responsive -->
+    <div class="device-card responsive-card" data-preset="responsive">
+      <div class="device-icon">
+        <svg width="36" height="28" viewBox="0 0 36 28" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="1" y="1" width="26" height="18" rx="2.5"/>
+          <rect x="28" y="7" width="7" height="12" rx="1.5"/>
+          <path d="M13 21v4M7 25h12" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="responsive-desc">
+        <span class="device-name">Responsive</span>
+        <span class="device-dims">Free resize — drag to any size</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer id="footer">
+  <span id="selected-label">Selected: <strong id="selected-name">None</strong></span>
+  <div id="footer-actions">
+    <button class="btn btn-secondary" id="cancel-btn">Cancel</button>
+    <button class="btn btn-primary" id="apply-btn" disabled>Apply</button>
+  </div>
+</footer>
+
+<!--
+  IMPORTANT: this used to be an inline <script> block. The page's own CSP is
+  `script-src 'self'` (no 'unsafe-inline'), so the browser silently refused to
+  run any inline script at all — which is why every button in this window did
+  nothing. Moving the logic to an external file loaded via src="" satisfies
+  'self' and lets it actually execute.
+-->
+<script src="picker.js"></script>
+</body>
+</html>
