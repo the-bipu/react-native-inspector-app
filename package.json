@@ -1,6 +1,6 @@
 {
-  "name": "rn-inspector-pro",
-  "version": "2.0.0",
+  "name": "react-native-inspector-app",
+  "version": "1.0.0",
   "description": "React Native Inspector Pro — internal process runner + log inspector",
   "main": "main.js",
   "scripts": {
@@ -10,31 +10,12 @@
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
   },
-  "build": {
-    "appId": "com.rni.pro",
-    "productName": "RN Inspector Pro",
-    "asar": true,
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "**/*",
-      "!release/**"
-    ],
-    "win": {
-      "target": ["nsis"],
-      "icon": "assets/icon.ico"
-    },
-    "mac": {
-      "target": "dmg",
-      "icon": "assets/icon.ico"
-    },
-    "linux": {
-      "target": "AppImage",
-      "icon": "assets/icon.ico"
-    }
-  },
-  "keywords": ["react-native", "debugger", "inspector", "electron"],
+  "keywords": [
+    "react-native",
+    "debugger",
+    "inspector",
+    "electron"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
@@ -44,5 +25,30 @@
   },
   "dependencies": {
     "ws": "^8.21.2"
+  },
+  "build": {
+    "appId": "com.rn-inspector.app",
+    "productName": "React Native Inspector",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "**/*",
+      "!release/**"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "appx"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
