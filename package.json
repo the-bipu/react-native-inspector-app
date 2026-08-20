@@ -1,7 +1,7 @@
 {
-  "name": "react-native-inspector-app",
+  "name": "native-inspector",
   "version": "1.0.0",
-  "description": "React Native Inspector Pro — internal process runner + log inspector",
+  "description": "Native Inspector — internal process runner + log inspector",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -28,8 +28,8 @@
     "ws": "^8.21.2"
   },
   "build": {
-    "appId": "com.rn-inspector.app",
-    "productName": "React Native Inspector",
+    "appId": "com.native-inspector.app",
+    "productName": "Native Inspector",
     "asar": true,
     "directories": {
       "output": "release"
